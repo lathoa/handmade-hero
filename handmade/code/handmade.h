@@ -57,6 +57,13 @@ struct world
 	tile_map *TileMap;
 };
 
+struct loaded_bitmap
+{
+	int32 Width;
+	int32 Height;
+	uint32* Pixels;
+};
+
 struct game_state
 {
 	memory_arena WorldArena;
@@ -66,8 +73,12 @@ struct game_state
 	real32 PlayerSpeed;
 	real32 PlayerHeight;
 	real32 PlayerWidth;
+	
+	loaded_bitmap Backdrop;
 
-	uint32 *PixelPointer;
+	loaded_bitmap HeroHead;
+	loaded_bitmap HeroCape;
+	loaded_bitmap HeroTorso;
 };
 
 union RGBReal
