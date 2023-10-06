@@ -73,12 +73,15 @@ struct bitmap_header
 	int32 VertResolution;
 	uint32 ColorsUsed;
 	uint32 ColorsImportant;
+
+	uint32 RedMask;
+	uint32 GreenMask;
+	uint32 BlueMask;
 };
 #pragma pack(pop)
 
 internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile, char *Filename)
 {
-
 	loaded_bitmap Result = {};
 
 	debug_read_file_result ReadResult = ReadEntireFile(Thread, Filename);	
@@ -92,8 +95,43 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 
 		// NOTE: If you are using this generically, remember that BMP files can go in either direction
 		// and the height will be negative for top down
-		// Also, there can be compression, etc. Not complete BMP loading code.		
-	}
+		// Also, there can be compression, etc. Not complete BMP loading code.				
+
+		// Early break if compression value is not 3
+		if(Header->Compression != 3) return Result;
+
+
+		// NOTE: Byte order in memory is determined by the Header itself when compression = 3,
+		// we have to read out the masks and convert the pixels ourselves
+		uint32 RedMask = Header->RedMask;
+		uint32 GreenMask = Header->GreenMask;
+		uint32 BlueMask = Header->BlueMask;
+		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+
+		bit_scan_result RedShift = FindLeastSignificantSetBit(RedMask);
+		bit_scan_result GreenShift = FindLeastSignificantSetBit(GreenMask);
+		bit_scan_result BlueShift = FindLeastSignificantSetBit(BlueMask);
+		bit_scan_result AlphaShift = FindLeastSignificantSetBit(AlphaMask);
+
+		Assert(RedShift.Found);
+		Assert(GreenShift.Found);
+		Assert(BlueShift.Found);
+		Assert(AlphaShift.Found);
+
+		uint32 *SourceDest = Pixels;
+		for(int32 Y = 0; Y < Header->Height; Y++)
+		{
+			for(int32 X = 0; X < Header->Width; X++)
+			{
+				uint32 C = *SourceDest;
+				*SourceDest++ = ((((C >> AlphaShift.Index) & 0xFF) << 24) |
+								(((C >> RedShift.Index) & 0xFF) << 16) | 
+								(((C >> GreenShift.Index) & 0xFF) << 8) | 
+								(((C >> BlueShift.Index) & 0xFF) << 0));	
+			}
+		}
+	}	
+
 
 	return Result;
 }
@@ -114,9 +152,25 @@ internal void DrawBitmap(game_offscreen_buffer *Buffer,loaded_bitmap *Bitmap, re
 		uint32 *Source = (uint32 *)SourceRow;
 		for(int32 X = MinX; X < MaxX; X++)
 		{
-			if(*Source & 0xFF000000){
-				*Dest = *Source;
-			}
+			real32 A = ((real32)((*Source >> 24) & 0xFF) / 255.0f);
+			real32 SR = (real32)((*Source >> 16) & 0xFF);
+			real32 SG = (real32)((*Source >> 8) & 0xFF);
+			real32 SB = (real32)((*Source >> 0) & 0xFF);
+
+			real32 DR = (real32)((*Dest >> 16) & 0xFF);
+			real32 DG = (real32)((*Dest >> 8) & 0xFF);
+			real32 DB = (real32)((*Dest >> 0 )& 0xFF);
+
+			real32 R = (1.0f - A)*DR + A*SR;
+			real32 G = (1.0f - A)*DG + A*SG;
+			real32 B = (1.0f - A)*DB + A*SB;
+
+			*Dest =	((*Source & 0xFF000000) | 
+					((uint32)(R + 0.5f) << 16) |
+					((uint32)(G + 0.5f) << 8) |
+					(uint32)(B + 0.5f)); 
+						
+
 			Dest++;
 			Source++;
 		}
@@ -140,11 +194,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	game_state *GameState = (game_state*)Memory->PermanentStorage;
 	if(!Memory->IsInitialized)
 	{		
-		GameState->Backdrop = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test_background.bmp");
+		GameState->Backdrop = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test_background.bmp");
 
-		GameState->HeroHead = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test_hero_front_head.bmp");
-		GameState->HeroCape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test_hero_front_cape.bmp");
-		GameState->HeroTorso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test_hero_front_torso.bmp");
+		GameState->HeroHead = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test_hero_front_head.bmp");
+		GameState->HeroCape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test_hero_front_cape.bmp");
+		GameState->HeroTorso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test_hero_front_torso.bmp");
 
 		GameState->PlayerP.AbsTileX = 1;
 		GameState->PlayerP.AbsTileY = 3;

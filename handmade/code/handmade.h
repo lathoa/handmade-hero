@@ -5,7 +5,7 @@
 #define PI 3.1415926535f
 
 /*
-	HANDMADE_INTERNAL:
+	HANDMADE_INTERNAL:s
 		0 - Build for public release
 		1 - Build for developer only
 

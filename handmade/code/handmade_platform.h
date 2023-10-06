@@ -6,6 +6,33 @@ extern "C" {
 
 #include <stdint.h>
 
+//
+// NOTE: Compilers
+//
+#ifndef COMPILER_MSVC 
+#define COMPILER_MSVC 0
+#endif
+
+#ifndef COMPILER_LLVM
+#define COMPILER_LLVM 0
+#endif
+
+#if !COMPILER_MSVC && !COMPILER_LLVM
+// Determine compiler
+	#if _MSC_VER 
+		#undef COMPILER_MSVC
+		#define COMPILER_MSVC 1
+	#else
+		// TODO: MOAR COMPILERS
+		#undef COMPILER_LLVM
+		#define COMPILER_LLVM 1
+	#endif
+#endif
+
+#if COMPILER_MSVC
+#include <intrin.h>
+#endif
+
 #define internal static
 #define local_persist static
 #define global_variable static
