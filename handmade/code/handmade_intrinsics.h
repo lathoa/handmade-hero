@@ -44,6 +44,21 @@ internal real32 fClamp(real32 Val, real32 Min, real32 Max)
 	return Result;
 }
 
+internal int32 Clamp(int32 Val, int32 Min, int32 Max)
+{
+	int32 Result = Val;
+	if(Val < Min)
+	{
+		Result = Min;
+	}
+	else if(Val > Max)
+	{
+		Result = Max;
+	}
+
+	return Result;
+}
+
 internal uint32 RGBReal32ToUInt32(real32 R, real32 G, real32 B)
 {		
 	uint8 uR = (uint8)(fClamp(R, 0.0f, 1.0f) * 255.0f);

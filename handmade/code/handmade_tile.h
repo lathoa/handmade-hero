@@ -1,5 +1,12 @@
 #ifndef HANDMADE_TILE_H
 
+struct tile_map_difference
+{
+	real32 dX;
+	real32 dY;
+	real32 dZ;
+};
+
 typedef struct 
 {
 	// Fixed bit tile locations. high bits are the tile chunk index, low bits are tile index
