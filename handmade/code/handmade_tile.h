@@ -1,11 +1,12 @@
 #ifndef HANDMADE_TILE_H
+#define HANDMADE_TILE_H
 
-struct tile_map_difference
+typedef struct
 {
-	real32 dX;
-	real32 dY;
+	v2 dXY;
 	real32 dZ;
-};
+
+} tile_map_difference;
 
 typedef struct 
 {
@@ -16,8 +17,7 @@ typedef struct
 	uint32 AbsTileZ;
 
 	// NOTE: These are the offsets from center of tile
-	real32 OffsetX;
-	real32 OffsetY;
+	v2 Offset;
 } tile_map_position;
 
 typedef struct 
@@ -50,6 +50,4 @@ typedef struct
 	tile_chunk *TileChunks;
 } tile_map;
 
-
-#define HANDMADE_TILE_H
 #endif

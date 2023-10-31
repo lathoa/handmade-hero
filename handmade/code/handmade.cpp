@@ -1,5 +1,4 @@
 #include "handmade.h"
-#include "handmade_random.h"
 
 #include "handmade_tile.cpp"
 #include <stdio.h>
@@ -33,14 +32,14 @@ internal void GameOutputSound(game_sound_output_buffer *SoundBuffer, game_state 
 	}
 }
 
-internal void DrawRectangle(game_offscreen_buffer *Buffer, real32 RealMinX, real32 RealMinY, real32 RealMaxX, real32 RealMaxY, RGBReal RGB)
+internal void DrawRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, RGBReal RGB)
 {
 	
-	int32 MinX = RoundReal32ToInt32(fClamp(RealMinX, 0.0f, (real32)Buffer->Width));
-	int32 MaxX = RoundReal32ToInt32(fClamp(RealMaxX, 0.0f, (real32)Buffer->Width));
+	int32 MinX = RoundReal32ToInt32(fClamp(vMin.X, 0.0f, (real32)Buffer->Width));
+	int32 MaxX = RoundReal32ToInt32(fClamp(vMax.X, 0.0f, (real32)Buffer->Width));
 
-	int32 MinY = RoundReal32ToInt32(fClamp(RealMinY, 0.0f, (real32)Buffer->Height));	
-	int32 MaxY = RoundReal32ToInt32(fClamp(RealMaxY, 0.0f, (real32)Buffer->Height));
+	int32 MinY = RoundReal32ToInt32(fClamp(vMin.Y, 0.0f, (real32)Buffer->Height));	
+	int32 MaxY = RoundReal32ToInt32(fClamp(vMax.Y, 0.0f, (real32)Buffer->Height));
 
 	uint32 Color = RGBReal32ToUInt32(RGB.d[0], RGB.d[1], RGB.d[2]);
 	
@@ -258,8 +257,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		GameState->PlayerP.AbsTileX = 1;
 		GameState->PlayerP.AbsTileY = 3;
-		GameState->PlayerP.OffsetX = 5.0f;
-		GameState->PlayerP.OffsetY = 5.0f;
+		GameState->PlayerP.Offset.X = 5.0f;
+		GameState->PlayerP.Offset.Y = 5.0f;
 		// Meters per Second
 		GameState->PlayerHeight = 1.4f;
 		GameState->PlayerWidth = GameState->PlayerHeight*0.75f;
@@ -438,50 +437,51 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		}
 		else
-		{
-			real32 dPlayerX = 0.0f;
-			real32 dPlayerY = 0.0f;
+		{			
+			v2 dPlayer = {};
 
 			if(Controller->MoveUp.EndedDown)
 			{
-				dPlayerY = 1.0f;
+				dPlayer.Y = 1.0f;
 				GameState->HeroFacingDirection = 1;
 			}
 			if(Controller->MoveDown.EndedDown)
 			{
-				dPlayerY = -1.0f;
+				dPlayer.Y = -1.0f;
 				GameState->HeroFacingDirection = 3;
 			}
 			if(Controller->MoveLeft.EndedDown)
 			{
-				dPlayerX = -1.0f;
+				dPlayer.X = -1.0f;
 				GameState->HeroFacingDirection = 2;
 			}
 			if(Controller->MoveRight.EndedDown)
 			{
-				dPlayerX = 1.0f;
+				dPlayer.X = 1.0f;
 				GameState->HeroFacingDirection = 0;
 			}
 
-			dPlayerX *= GameState->PlayerSpeed;
-			dPlayerY *= GameState->PlayerSpeed;
+			dPlayer *= GameState->PlayerSpeed;			
 			if(Controller->ActionUp.EndedDown)
 			{
-				dPlayerX *= 8;
-				dPlayerY *= 8;
+				dPlayer *= 8;				
 			}	
 
+			if((dPlayer.X != 0.0f) && (dPlayer.Y != 0.0f))
+			{
+				dPlayer *= 0.707;				
+			}
+
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.OffsetX += (dPlayerX * Input->dtForFrame);
-			NewPlayerP.OffsetY += (dPlayerY * Input->dtForFrame);			
+			NewPlayerP.Offset += (dPlayer * Input->dtForFrame);			
 			NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
 			tile_map_position PlayerLeft = NewPlayerP;
-			PlayerLeft.OffsetX -= 0.5f*GameState->PlayerWidth;
+			PlayerLeft.Offset.X -= 0.5f*GameState->PlayerWidth;
 			PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
 
 			tile_map_position PlayerRight = NewPlayerP;
-			PlayerRight.OffsetX += 0.5f*GameState->PlayerWidth;
+			PlayerRight.Offset.X += 0.5f*GameState->PlayerWidth;
 			PlayerRight = RecanonicalizePosition(TileMap, PlayerRight);
 			
 			if(IsTileMapPointEmpty(TileMap, NewPlayerP) &&
@@ -507,19 +507,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;	
 
 			tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
-			if(Diff.dX > (9.0f*TileMap->TileSideInMeters))
+			if(Diff.dXY.X > (9.0f*TileMap->TileSideInMeters))
 			{
 			 	GameState->CameraP.AbsTileX += 17;
 			}
-			if(Diff.dX < -(9.0f*TileMap->TileSideInMeters))
+			if(Diff.dXY.X < -(9.0f*TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileX -= 17;
 			}
-			if(Diff.dY > (5.0f*TileMap->TileSideInMeters))
+			if(Diff.dXY.Y > (5.0f*TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileY += 9;
 			}
-			if(Diff.dY < -(5.0f*TileMap->TileSideInMeters))
+			if(Diff.dXY.Y < -(5.0f*TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileY -= 9;
 			}			
@@ -557,14 +557,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				}
 
 				
-				real32 CenX = ScreenCenterX - MetersToPixels*GameState->CameraP.OffsetX + (real32)RelCol*TileSideInPixels;
-				real32 CenY = ScreenCenterY + MetersToPixels*GameState->CameraP.OffsetY - (real32)RelRow*TileSideInPixels;
-				real32 MinX = CenX - 0.5f*TileSideInPixels;
-				real32 MinY = CenY - 0.5f*TileSideInPixels;
-				real32 MaxX = CenX + 0.5f*TileSideInPixels;
-				real32 MaxY = CenY + 0.5f*TileSideInPixels;
+
+				v2 HalfTileSide = {0.5f*TileSideInPixels, 0.5f*TileSideInPixels};
+				v2 Cen = {ScreenCenterX - MetersToPixels*GameState->CameraP.Offset.X + (real32)RelCol*TileSideInPixels,
+							ScreenCenterY + MetersToPixels*GameState->CameraP.Offset.Y - (real32)RelRow*TileSideInPixels};
+				v2 Min = Cen - HalfTileSide;				
+				v2 Max = Cen + HalfTileSide;				
 				RGBReal TileColor = {Gray, Gray, Gray};
-				DrawRectangle(Buffer, MinX, MinY, MaxX, MaxY, TileColor);
+				DrawRectangle(Buffer, Min, Max, TileColor);
 			}
 		}
 	}	
@@ -572,13 +572,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
 
 	RGBReal PlayerColor = {0.8f, 0.8f, 0.0f};
-	real32 PlayerGroundX = ScreenCenterX + MetersToPixels*Diff.dX;
-	real32 PlayerGroundY = ScreenCenterY - MetersToPixels*Diff.dY;
-	real32 PlayerLeft =	PlayerGroundX - MetersToPixels*0.5f*GameState->PlayerWidth;
-	real32 PlayerTop = PlayerGroundY - MetersToPixels*GameState->PlayerHeight;	
+	real32 PlayerGroundX = ScreenCenterX + MetersToPixels*Diff.dXY.X;
+	real32 PlayerGroundY = ScreenCenterY - MetersToPixels*Diff.dXY.Y;
+	v2 PlayerLeftTop =	{PlayerGroundX - MetersToPixels*0.5f*GameState->PlayerWidth,
+						 PlayerGroundY - MetersToPixels*GameState->PlayerHeight};
+	v2 PlayerWidthHeight = {GameState->PlayerWidth, GameState->PlayerHeight};
 	DrawRectangle(Buffer, 
-				  PlayerLeft, PlayerTop, 
-				  PlayerLeft + MetersToPixels*GameState->PlayerWidth, PlayerTop + MetersToPixels*GameState->PlayerHeight,
+				  PlayerLeftTop,
+				  PlayerLeftTop + MetersToPixels*PlayerWidthHeight,
 				  PlayerColor);
 			
 	hero_bitmaps *HeroBitmaps = &GameState->HeroBitmaps[GameState->HeroFacingDirection];			

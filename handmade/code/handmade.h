@@ -1,6 +1,13 @@
-#if !defined(HANDMADE_H)
+#ifndef HANDMADE_H
+#define HANDMADE_H
+
+// This is where I will put ALL of my header includes
 
 #include "handmade_platform.h"
+#include "handmade_random.h"
+#include "handmade_math.h"
+#include "handmade_intrinsics.h"
+#include "handmade_tile.h"
 
 #define PI 3.1415926535f
 
@@ -41,9 +48,6 @@ inline game_controller_input *GetController(game_input *Input, int ControllerInd
 	game_controller_input *Result = (&Input->Controllers[ControllerIndex]);
 	return Result;
 }
-
-#include "handmade_intrinsics.h"
-#include "handmade_tile.h"
 
 struct memory_arena
 {
@@ -121,5 +125,4 @@ internal void *PushSize_(memory_arena *Arena, memory_index Size)
 	return Result;
 }
 
-#define HANDMADE_H
 #endif

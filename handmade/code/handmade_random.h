@@ -1,4 +1,5 @@
 #ifndef HANDMADE_RANDOM_H
+#define HANDMADE_RANDOM_H
 
 #include "handmade.h"
 
@@ -518,8 +519,4 @@ global_variable uint32 RandomNumberTable[] =
 	0x17f197db, 0x34db05a8, 0x1e65619, 0x252e2c25, 0x2c5cacc4, 0x1046614, 0x1dd6c764
 };
 
-
-
-
-#define HANDMADE_RANDOM_H
 #endif
