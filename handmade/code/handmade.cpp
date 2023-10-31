@@ -2,6 +2,7 @@
 #include "handmade_random.h"
 
 #include "handmade_tile.cpp"
+#include <stdio.h>
 
 internal void GameOutputSound(game_sound_output_buffer *SoundBuffer, game_state *GameState)
 {	
@@ -137,15 +138,15 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 }
 
 internal void DrawBitmap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, real32 RealX, real32 RealY, int32 AlignX = 0, int32 AlignY = 0)
-{
+{	
 
 	RealX -= (real32)AlignX;
-	RealY -= (real32)AlignY;
+	RealY -= (real32)AlignY;	
 
-	int32 MinX = RoundReal32ToInt32(RealX);
-	int32 MinY = RoundReal32ToInt32(RealY);
-	int32 MaxX = RoundReal32ToInt32(RealX + (real32)Bitmap->Width);
-	int32 MaxY = RoundReal32ToInt32(RealY + (real32)Bitmap->Height);
+	int32 MinX = TruncateReal32ToInt32(RealX);
+	int32 MinY = TruncateReal32ToInt32(RealY);
+	int32 MaxX = TruncateReal32ToInt32(RealX + (real32)Bitmap->Width);
+	int32 MaxY = TruncateReal32ToInt32(RealY + (real32)Bitmap->Height);
 
 	int32 SourceOffsetX = 0;
 	int32 SourceOffsetY = 0;

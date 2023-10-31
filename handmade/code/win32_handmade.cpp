@@ -13,23 +13,21 @@
 	- Getting a handle to own executable file
 	- Asset loading path
 	- Threading (launch a thread)
-	- RawInput (support multiple keyboards)
-	- Sleep/timeBeginPeriod
+	- RawInput (support multiple keyboards)	
 	- ClipCursor() for multimonitor support
-	- fullscreen support
 	- WM_SETCURSOR (control cursor visibility)
 	- QueryCancelAutoplay
 	- WM_ACTIVATEAPP
 	- Blit speed improvements
 	- Hardware acceleration (OpenGL or Direct3D)
 	- GetKeyboardLayout
+	- ChangeDislpaySettings if we detect a slow blit
 
 	Partial list of stuff to do...
 
 */
 #include <windows.h>
 #include <malloc.h>
-#include <stdio.h>
 #include <xinput.h>
 #include <dsound.h>
 
@@ -41,6 +39,37 @@ global_variable bool GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackbuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable int64 GlobalPerfCountFrequency;
+global_variable bool32 DEBUGGlobalShowCursor;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
+
+internal void ToggleFullscreen(HWND Window)
+{
+	// NOTE: This follows Raymond Chen's prescription for fullscreen toggling
+	// From TheOldNewThing
+	DWORD Style = GetWindowLong(Window, GWL_STYLE);
+	if(Style & WS_OVERLAPPEDWINDOW)
+	{
+		MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+		if(GetWindowPlacement(Window, &GlobalWindowPosition) && 
+			GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+		{
+			SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+			SetWindowPos(Window, HWND_TOP, 
+						MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+						MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+						MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+						SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+		}
+	}
+	else
+	{
+		SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+		SetWindowPlacement(Window, &GlobalWindowPosition);
+		SetWindowPos(Window, NULL, 0, 0, 0, 0, 
+					SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | 
+					SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+	}
+}
 
 /*
   Process for loading XInput get and set state functions.
@@ -339,20 +368,33 @@ win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, int Height)
 
 internal void
 win32DisplayBufferInWindow(win32_offscreen_buffer *Buffer, HDC DeviceContext, int WindowWidth, int WindowHeight)
-{	
-	int OffsetX = 10;
-	int OffsetY = 10;
-	PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
-	PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
-	PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
-	PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);	
+{		
+	// TODO: Centering / black bars?
+	if((WindowWidth >= Buffer->Width*2) && (WindowHeight >= Buffer->Height*2))
+	{
+		StretchDIBits(DeviceContext,
+		0, 0, 2*Buffer->Width, 2*Buffer->Height,
+		0, 0, Buffer->Width, Buffer->Height,
+		Buffer->Memory,
+		&Buffer->Info,
+		DIB_RGB_COLORS, SRCCOPY);
+	}
+	else
+	{
+		int OffsetX = 10;
+		int OffsetY = 10;
+		PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+		PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);	
 
-	StretchDIBits(DeviceContext,
-				  OffsetX, OffsetY, Buffer->Width, Buffer->Height,
-				  0, 0, Buffer->Width, Buffer->Height,
-				  Buffer->Memory,
-				  &Buffer->Info,
-				  DIB_RGB_COLORS, SRCCOPY);
+		StretchDIBits(DeviceContext,
+					OffsetX, OffsetY, Buffer->Width, Buffer->Height,
+					0, 0, Buffer->Width, Buffer->Height,
+					Buffer->Memory,
+					&Buffer->Info,
+					DIB_RGB_COLORS, SRCCOPY);
+	}
 }
 
 internal void Win32ClearSoundBuffer(win32_sound_output *SoundOutput)
@@ -594,6 +636,15 @@ LRESULT CALLBACK win32MainWindowCallback(
 	}
 	break;
 
+	case WM_SETCURSOR:
+	{
+		if(!DEBUGGlobalShowCursor)
+		{		
+			SetCursor(0);
+		}
+		
+	} break;
+
 	case WM_ACTIVATEAPP:
 	{
 		OutputDebugStringA("WM_ACTIVATEAPP\n");
@@ -726,10 +777,20 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
 					
 				}
 				// Handle Alt+F4 case ourselves
-				bool32 AltKeyWasDown = Message.lParam & (1 << 29);
-				if ((VKCode == VK_F4) && AltKeyWasDown)
+				if(IsDown)
 				{
-					GlobalRunning = false;
+					bool32 AltKeyWasDown = Message.lParam & (1 << 29);
+					if ((VKCode == VK_F4) && AltKeyWasDown)
+					{
+						GlobalRunning = false;
+					}
+					if((VKCode == VK_RETURN) && AltKeyWasDown)
+					{
+						if(Message.hwnd)
+						{
+							ToggleFullscreen(Message.hwnd);
+						}					
+					}
 				}
 			}
 			break;
@@ -891,6 +952,13 @@ int CALLBACK WinMain(
 
 	Win32LoadXInput();
 
+
+#if HANDMADE_INTERNAL
+	DEBUGGlobalShowCursor = true;
+#else
+	DEBUGGlobalShowCursor = false;
+#endif
+
 	WNDCLASSA WindowClass = {};
 
 	// NOTE: 1080p display mode is 1920x1080
@@ -900,6 +968,7 @@ int CALLBACK WinMain(
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 	WindowClass.lpfnWndProc = win32MainWindowCallback;
 	WindowClass.hInstance = Instance;
+	// WindowClass.hCursor = LoadCursor(0, IDC_CROSS);
 	// WindowClass.hIcon;
 	WindowClass.lpszClassName = "HandmadeHeroWindowClass";	
 
@@ -927,7 +996,7 @@ int CALLBACK WinMain(
 			{
 				MonitorRefreshHz = Win32RefreshRate;
 			}
-			real32 GameUpdateHz = (MonitorRefreshHz/1.0f);
+			real32 GameUpdateHz = (MonitorRefreshHz/2.0f);
 			real32 TargetSecondsPerFrame = 1.0f / (GameUpdateHz);
 
 			win32_sound_output SoundOutput = {};
@@ -1266,11 +1335,13 @@ int CALLBACK WinMain(
 							AudioLatencyBytes = UnwrappedWriteCursor - PlayCursor;
 							AudioLatencySeconds = (((real32)AudioLatencyBytes / (real32)SoundOutput.BytesPerSample) / (real32)SoundOutput.SamplesPerSecond);
 
+							/*
 							char TextBuffer[256];
 							sprintf_s(TextBuffer, sizeof(TextBuffer), "BTL:%u TC:%u BTW:%u | PC:%u WC:%u DELTA:%u\n",
 								ByteToLock, TargetCursor, BytesToWrite,
 								PlayCursor, WriteCursor, AudioLatencyBytes);
 							OutputDebugStringA(TextBuffer);
+							*/
 						}
 #endif
 						Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite, &SoundBuffer);
@@ -1278,11 +1349,7 @@ int CALLBACK WinMain(
 					else
 					{
 						SoundIsValid = false;
-					}
-
-					int64 EndCycleCount = __rdtsc();
-					int64 CyclesElapsed = EndCycleCount - LastCycleCount;
-					LastCycleCount = EndCycleCount;
+					}					
 
 					LARGE_INTEGER WorkCounter = Win32GetWallClock();
 					real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);				
@@ -1316,12 +1383,16 @@ int CALLBACK WinMain(
 					}
 
 					LARGE_INTEGER EndCounter = Win32GetWallClock();
-					real32 CounterElapsed = Win32GetSecondsElapsed(LastCounter, EndCounter);
-					FlipWallClock = Win32GetWallClock();
+					real32 MSPerFrame = 1000.0f*Win32GetSecondsElapsed(LastCounter, EndCounter);					
 					LastCounter = EndCounter;										
 
+					Dimension = Win32GetWindowDimension(Window);
+					HDC DeviceContext = GetDC(Window);
 					win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, 
-												Dimension.Width, Dimension.Height);			
+												Dimension.Width, Dimension.Height);	
+					ReleaseDC(Window, DeviceContext);		
+
+					FlipWallClock = Win32GetWallClock();
 
 #if HANDMADE_INTERNAL
 					{
@@ -1335,15 +1406,6 @@ int CALLBACK WinMain(
 					}
 #endif
 										
-					real32 MSPerFrame = (real32)(1000.0f * CounterElapsed);
-					real32 FPS = 1.0f / ((real32)CounterElapsed);
-					real32 MCPF = ((real32)CyclesElapsed) / (1000.0f * 1000.0f);
-
-#if 0
-					char PrintBuffer[256];
-					sprintf_s(PrintBuffer, "ms/f: %f, FPS: %f, Mc/f: %f\n", MSPerFrame, FPS, MCPF);
-					OutputDebugStringA(PrintBuffer);	
-#endif					
 
 #if HANDMADE_INTERNAL
 					DebugMarkerIndex++;
@@ -1357,6 +1419,19 @@ int CALLBACK WinMain(
 					game_input *Temp = NewInput;
 					NewInput = OldInput;
 					OldInput = Temp;
+
+					int64 EndCycleCount = __rdtsc();
+					int64 CyclesElapsed = EndCycleCount - LastCycleCount;
+					LastCycleCount = EndCycleCount;
+					
+					real64 FPS = 0.0f;
+					real64 MCPF = ((real64)CyclesElapsed / (1000.0f * 1000.0f));
+
+#if 0
+					char FPSBuffer[256];
+					sprintf_s(FPSBuffer, "ms/f: %f, FPS: %f, MC/f: %f\n", MSPerFrame, FPS, MCPF);
+					OutputDebugStringA(FPSBuffer);	
+#endif					
 				}
 			}
 			else
