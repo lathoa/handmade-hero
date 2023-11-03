@@ -86,6 +86,12 @@ inline real32 ATan2(real32 Y, real32 X)
     return Result;
 }
 
+inline real32 Square(real32 A)
+{
+	real32 Result = A * A;
+	return A;
+}
+
 struct bit_scan_result 
 {
 	bool32 Found;

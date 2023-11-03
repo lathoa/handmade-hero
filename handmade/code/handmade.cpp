@@ -262,7 +262,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		// Meters per Second
 		GameState->PlayerHeight = 1.4f;
 		GameState->PlayerWidth = GameState->PlayerHeight*0.75f;
-		GameState->PlayerSpeed = 2.15f;
+		GameState->PlayerAcceleration = 10.0f;
 
 		InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), 
 						(uint8 *)Memory->PermanentStorage + sizeof(game_state));
@@ -438,42 +438,51 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		}
 		else
 		{			
-			v2 dPlayer = {};
+			v2 ddPlayer = {};
 
 			if(Controller->MoveUp.EndedDown)
 			{
-				dPlayer.Y = 1.0f;
+				ddPlayer.Y = 1.0f;
 				GameState->HeroFacingDirection = 1;
 			}
 			if(Controller->MoveDown.EndedDown)
 			{
-				dPlayer.Y = -1.0f;
+				ddPlayer.Y = -1.0f;
 				GameState->HeroFacingDirection = 3;
 			}
 			if(Controller->MoveLeft.EndedDown)
 			{
-				dPlayer.X = -1.0f;
+				ddPlayer.X = -1.0f;
 				GameState->HeroFacingDirection = 2;
 			}
 			if(Controller->MoveRight.EndedDown)
 			{
-				dPlayer.X = 1.0f;
+				ddPlayer.X = 1.0f;
 				GameState->HeroFacingDirection = 0;
+			}			
+
+			// Normalize
+			if((ddPlayer.X != 0.0f) && (ddPlayer.Y != 0.0f))
+			{
+				ddPlayer *= 0.707;				
 			}
 
-			dPlayer *= GameState->PlayerSpeed;			
+			ddPlayer *= GameState->PlayerAcceleration;			
 			if(Controller->ActionUp.EndedDown)
 			{
-				dPlayer *= 8;				
+				ddPlayer *= 8;				
 			}	
 
-			if((dPlayer.X != 0.0f) && (dPlayer.Y != 0.0f))
-			{
-				dPlayer *= 0.707;				
-			}
+			// TODO ODE here! (Friction)
+			ddPlayer += -1.5f * GameState->dPlayerP;
 
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.Offset += (dPlayer * Input->dtForFrame);			
+			// Update position and velocity
+			NewPlayerP.Offset = (0.5f * ddPlayer*Square(Input->dtForFrame) + 
+								(GameState->dPlayerP * Input->dtForFrame) + 
+								NewPlayerP.Offset);						
+			GameState->dPlayerP += ddPlayer*Input->dtForFrame;						
+
 			NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
 			tile_map_position PlayerLeft = NewPlayerP;

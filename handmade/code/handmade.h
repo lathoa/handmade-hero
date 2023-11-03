@@ -84,8 +84,9 @@ struct game_state
 
 	tile_map_position PlayerP;
 	tile_map_position CameraP;
+	v2 dPlayerP;	
 
-	real32 PlayerSpeed;
+	real32 PlayerAcceleration;
 	real32 PlayerHeight;
 	real32 PlayerWidth;
 	
