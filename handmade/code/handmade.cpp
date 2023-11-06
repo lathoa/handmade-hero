@@ -461,7 +461,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				GameState->HeroFacingDirection = 0;
 			}			
 
-			// Normalize
+			// TODO Normalize
 			if((ddPlayer.X != 0.0f) && (ddPlayer.Y != 0.0f))
 			{
 				ddPlayer *= 0.707;				
@@ -474,7 +474,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}	
 
 			// TODO ODE here! (Friction)
-			ddPlayer += -1.5f * GameState->dPlayerP;
+			ddPlayer += -1.0f * GameState->dPlayerP;
 
 			tile_map_position NewPlayerP = GameState->PlayerP;
 			// Update position and velocity
@@ -493,9 +493,48 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			PlayerRight.Offset.X += 0.5f*GameState->PlayerWidth;
 			PlayerRight = RecanonicalizePosition(TileMap, PlayerRight);
 			
-			if(IsTileMapPointEmpty(TileMap, NewPlayerP) &&
-				IsTileMapPointEmpty(TileMap, PlayerLeft) &&
-				IsTileMapPointEmpty(TileMap, PlayerRight))
+
+			bool32 Collided = false;
+			tile_map_position ColP = {};
+			if(!IsTileMapPointEmpty(TileMap, NewPlayerP))
+			{
+				Collided = true;
+				ColP = NewPlayerP;
+			}
+			if(!IsTileMapPointEmpty(TileMap, PlayerLeft))
+			{
+				Collided = true;
+				ColP = PlayerLeft;
+			}
+			if(!IsTileMapPointEmpty(TileMap, PlayerRight))
+			{
+				Collided = true;
+				ColP = PlayerRight;
+			}
+			if(Collided)
+			{
+				v2 R = {};
+				if(ColP.AbsTileX < GameState->PlayerP.AbsTileX)
+				{
+					// Left wall;
+					R = V2(1, 0);
+				}
+				if(ColP.AbsTileX > GameState->PlayerP.AbsTileX)
+				{
+					// Right wall;
+					R = V2(-1, 0);
+				}
+				if(ColP.AbsTileY < GameState->PlayerP.AbsTileY)
+				{
+					R = V2(0, 1);
+				}
+				if(ColP.AbsTileY > GameState->PlayerP.AbsTileY)
+				{
+					R = V2(0, -1);
+				}
+				GameState->dPlayerP = GameState->dPlayerP - 1 * Inner(GameState->dPlayerP, R) * R;
+			}
+			else
 			{
 				if(!AreOnSameTile(&GameState->PlayerP, &NewPlayerP))
 				{
@@ -511,7 +550,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					}
 				}
 				GameState->PlayerP = NewPlayerP;
-			}
+			}			
 
 			GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;	
 
