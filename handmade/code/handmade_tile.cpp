@@ -49,6 +49,21 @@ internal bool32 GetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 Te
 	return Result;
 }
 
+internal uint32 GetTileValue(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{	
+	tile_chunk_position ChunkPos = GetChunkPositionFor(TileMap, AbsTileX, AbsTileY, AbsTileZ);
+	tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY, ChunkPos.TileChunkZ);
+	uint32 Value = GetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY);
+
+	return Value;
+}
+
+internal uint32 GetTileValue(tile_map *TileMap, tile_map_position Pos)
+{	
+	uint32 Value = GetTileValue(TileMap, Pos.AbsTileX, Pos.AbsTileY, Pos.AbsTileZ);
+	return Value;
+}
+
 internal void SetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY, uint32 TileValue)
 {
 	if(TileChunk && TileChunk->Tiles)
@@ -69,25 +84,16 @@ inline tile_chunk_position GetChunkPositionFor(tile_map *TileMap, uint32 AbsTile
 	return Result;
 }
 
-internal uint32 GetTileValue(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
-{	
-	tile_chunk_position ChunkPos = GetChunkPositionFor(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-	tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY, ChunkPos.TileChunkZ);
-	uint32 Value = GetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY);
-
-	return Value;
-}
-
-internal uint32 GetTileValue(tile_map *TileMap, tile_map_position Pos)
-{	
-	uint32 Value = GetTileValue(TileMap, Pos.AbsTileX, Pos.AbsTileY, Pos.AbsTileZ);
-	return Value;
+internal bool32 IsTileValueEmpty(uint32 TileValue)
+{
+	bool32 Empty = (TileValue == 1) || (TileValue == 3) || (TileValue == 4);
+	return Empty;
 }
 
 internal bool32 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position CanPos)
 {		
 	uint32 Value = GetTileValue(TileMap, CanPos.AbsTileX, CanPos.AbsTileY, CanPos.AbsTileZ);
-	bool32 Empty = (Value == 1) || (Value == 3) || (Value == 4);
+	bool32 Empty = IsTileValueEmpty(Value);
 
 	return Empty;
 }
@@ -157,6 +163,17 @@ inline tile_map_difference Subtract(tile_map *TileMap, tile_map_position *A, til
 
 	Result.dXY = TileMap->TileSideInMeters*dTileXY + (A->Offset - B->Offset);	
 	Result.dZ = TileMap->TileSideInMeters*dTileZ;
+
+	return Result;
+}
+
+inline tile_map_position CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{
+	tile_map_position Result = {};
+
+	Result.AbsTileX = AbsTileX;
+	Result.AbsTileY = AbsTileY;
+	Result.AbsTileZ = AbsTileZ;
 
 	return Result;
 }
