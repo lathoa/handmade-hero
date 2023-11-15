@@ -38,6 +38,18 @@ inline void SetTileValueUnchecked(tile_map *TileMap, tile_chunk *TileChunk, uint
 	TileChunk->Tiles[TileY*TileMap->ChunkDim + TileX] = TileValue;	
 }
 
+inline tile_chunk_position GetChunkPositionFor(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{
+	tile_chunk_position Result;
+	Result.TileChunkX = AbsTileX >> TileMap->ChunkShift;
+	Result.TileChunkY = AbsTileY >> TileMap->ChunkShift;
+	Result.TileChunkZ = AbsTileZ;
+	Result.RelTileX = AbsTileX & TileMap->ChunkMask;
+	Result.RelTileY = AbsTileY & TileMap->ChunkMask;
+
+	return Result;
+}
+
 internal bool32 GetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY)
 {
 	uint32 Result = 0;
@@ -70,18 +82,6 @@ internal void SetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 Test
 	{		
 		SetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY, TileValue);		
 	}	
-}
-
-inline tile_chunk_position GetChunkPositionFor(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
-{
-	tile_chunk_position Result;
-	Result.TileChunkX = AbsTileX >> TileMap->ChunkShift;
-	Result.TileChunkY = AbsTileY >> TileMap->ChunkShift;
-	Result.TileChunkZ = AbsTileZ;
-	Result.RelTileX = AbsTileX & TileMap->ChunkMask;
-	Result.RelTileY = AbsTileY & TileMap->ChunkMask;
-
-	return Result;
 }
 
 internal bool32 IsTileValueEmpty(uint32 TileValue)
