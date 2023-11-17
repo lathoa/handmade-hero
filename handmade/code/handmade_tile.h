@@ -1,6 +1,7 @@
 #ifndef HANDMADE_TILE_H
 #define HANDMADE_TILE_H
 
+// TODO replace with v3
 typedef struct
 {
 	v2 dXY;

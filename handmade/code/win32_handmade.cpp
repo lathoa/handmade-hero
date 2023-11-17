@@ -738,11 +738,11 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
 					}
 					else if (VKCode == VK_ESCAPE)
 					{
-						Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
+						Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
 					}
 					else if (VKCode == VK_SPACE)
 					{
-						Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
+						Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
 					}
 #if HANDMADE_INTERNAL					
 					else if (VKCode == 'P')

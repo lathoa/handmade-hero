@@ -82,6 +82,10 @@ struct entity
 	bool32 Exists;
 	tile_map_position P;
 	v2 dP;
+	uint32 FacingDirection;
+
+	real32 Width;
+	real32 Height;
 };
 
 struct game_state
@@ -95,10 +99,10 @@ struct game_state
 	
 	// Number of players matches number of controllers
 	uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
+	uint32 EntityCount;
 	entity Entities[256];
 
 	loaded_bitmap Backdrop;
-	uint32 HeroFacingDirection;
 	hero_bitmaps HeroBitmaps[4];
 	
 };
