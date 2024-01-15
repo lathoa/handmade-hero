@@ -12,7 +12,7 @@
 #define PI 3.1415926535f
 
 /*
-	HANDMADE_INTERNAL:s
+	HANDMADE_INTERNAL:
 		0 - Build for public release
 		1 - Build for developer only
 
@@ -34,6 +34,8 @@
 #define Terabytes(Value) (Gigabytes(Value)*1024) 
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+#define Minimum(A, B) ((A < B) ? (A) : (B))
+#define Maximum(A, B) ((A > B) ? (A) : (B))
 
 inline uint32 SafeTruncateUInt64(uint64 Value)
 {

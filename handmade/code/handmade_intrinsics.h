@@ -5,6 +5,12 @@
 
 //TODO convert all of these to platform-efficient versions and remove math.h
 
+inline real32 SquareRoot(real32 Real32)
+{
+	real32 Result = sqrtf(Real32);
+	return Result;
+}
+
 inline uint32 RotateLeft(uint32 Value, int32 Amount)
 {
 	uint32 Result = _rotl(Value, Amount);

@@ -255,17 +255,18 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 {	
 	tile_map *TileMap = GameState->World->TileMap;
 
-	// TODO Normalize
-	if((ddP.X != 0.0f) && (ddP.Y != 0.0f))
+	real32 ddPLength2 = LengthSq(ddP);
+	// Max acceleration = 1, check against 1^2 (= 1)
+	if(ddPLength2 > 1.0f)
 	{
-		ddP *= 0.707;				
-	}
+		ddP *= (1.0f / SquareRoot(ddPLength2));
+	}	
 
-	real32 Speed = 20.0f;
+	real32 Speed = 8.0f;
 	ddP *= Speed;	
 
 	// TODO ODE here! (Friction)
-	ddP += -1.8f * Entity->dP;
+	ddP += -1.2f * Entity->dP;
 
 	tile_map_position OldPlayerP = Entity->P;
 	tile_map_position NewPlayerP = OldPlayerP;
@@ -275,7 +276,7 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 	Entity->dP = ddP*dt + Entity->dP;						
 	NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
-#if 1			
+#if 0		
 	tile_map_position PlayerLeft = NewPlayerP;
 	PlayerLeft.Offset.X -= 0.5f*Entity->Width;
 	PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
@@ -330,13 +331,13 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 		Entity->P = NewPlayerP;
 	}
 #else
-	uint32 MinTileX = 0;
-	uint32 MinTileY = 0;
-	uint32 OnePastMaxTileX = 0;
-	uint32 OnePastMaxTileY = 0;
-	uint32 AbsTileZ = Entity->P.AbsTileZ;
-	tile_map_position BestPoint  = Entity->P;
-	real32 BestDistanceSq = LengthSq(PlayerDelta);
+	uint32 MinTileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
+	uint32 MinTileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
+	uint32 OnePastMaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX) + 1;
+	uint32 OnePastMaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY) + 1;
+
+	uint32 AbsTileZ = Entity->P.AbsTileZ;	
+	real32 tMin = 1.0f;
 	for(uint32 AbsTileY = MinTileY; AbsTileY != OnePastMaxTileY; AbsTileY++)
 	{
 		for(uint32 AbsTileX = MinTileX; AbsTileX != OnePastMaxTileX; AbsTileX++)
@@ -346,15 +347,12 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 			if(IsTileValueEmpty(TileValue))
 			{
 				v2 MinCorner = -0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
-				v2 MaxCorner = 0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+				v2 MaxCorner = 0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};				
 
 				tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
-
-				v2 TestP = ClosestPointInPectangle(MinCorner, MaxCorner, RelNewPlayerP);
-				if(LengthSq(TestP) < BestDistanceSq)
-				{
-
-				}
+				v2 Rel = RelNewPlayerP.dXY;				
+				tResult = (Wallx - Rel.X) / PlayerDelta.X;				
+				TestWall(MinCorner.X, MinCorner.Y, MaxCorner.X, MaxCorner.Y, Rel.X, Rel.Y);
 			}
 		}
 	}		
