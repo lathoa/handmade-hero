@@ -251,6 +251,25 @@ internal void InitializePlayer(game_state *GameState, uint32 EntityIndex)
 	}
 }
 
+internal void TestWall(real32 Wall, real32 RelX, real32 RelY, real32 PlayerDeltaX, 
+						real32 PlayerDeltaY, real32 *tMin, real32 MinY, real32 MaxY)
+{	
+	real32 tEpsilon = 0.001f;
+	if (PlayerDeltaX != 0.0f)
+	{		
+		real32 tResult = (Wall - RelX) / PlayerDeltaX;
+		real32 Y = RelY + tResult * PlayerDeltaY;
+		if ((tResult > 0.0f) && (*tMin > tResult))
+		{
+			// Wall exists at this Y
+			if ((Y >= MinY) && (Y <= MaxY))
+			{
+				*tMin = Maximum(0.0f, tResult-tEpsilon);
+			}
+		}
+	}
+}
+
 internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 ddP)
 {	
 	tile_map *TileMap = GameState->World->TileMap;
@@ -268,15 +287,16 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 	// TODO ODE here! (Friction)
 	ddP += -1.2f * Entity->dP;
 
-	tile_map_position OldPlayerP = Entity->P;
-	tile_map_position NewPlayerP = OldPlayerP;
+	tile_map_position OldPlayerP = Entity->P;	
 	// Update position and velocity
 	v2 PlayerDelta = (0.5f * (ddP*Square(dt)) + (Entity->dP * dt));
-	NewPlayerP.Offset += PlayerDelta; 								
-	Entity->dP = ddP*dt + Entity->dP;						
+	Entity->dP = ddP*dt + Entity->dP;				
+	tile_map_position NewPlayerP = OldPlayerP;
+	NewPlayerP.Offset += PlayerDelta; 											
 	NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
-#if 0		
+#if 0			
+
 	tile_map_position PlayerLeft = NewPlayerP;
 	PlayerLeft.Offset.X -= 0.5f*Entity->Width;
 	PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
@@ -330,7 +350,7 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 	{
 		Entity->P = NewPlayerP;
 	}
-#else
+#else	
 	uint32 MinTileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
 	uint32 MinTileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
 	uint32 OnePastMaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX) + 1;
@@ -344,18 +364,29 @@ internal void MovePlayer(game_state *GameState, entity *Entity, real32 dt, v2 dd
 		{
 			tile_map_position TestTileP = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
 			uint32 TileValue = GetTileValue(TileMap, TestTileP);
-			if(IsTileValueEmpty(TileValue))
+			if(!IsTileValueEmpty(TileValue))
 			{
 				v2 MinCorner = -0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
 				v2 MaxCorner = 0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};				
 
-				tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
-				v2 Rel = RelNewPlayerP.dXY;				
-				tResult = (Wallx - Rel.X) / PlayerDelta.X;				
-				TestWall(MinCorner.X, MinCorner.Y, MaxCorner.X, MaxCorner.Y, Rel.X, Rel.Y);
+				// Vector from center of tile to player position
+				tile_map_difference RelOldPlayerP = Subtract(TileMap, &OldPlayerP, &TestTileP);
+				v2 Rel = RelOldPlayerP.dXY;			
+
+				// Test all four walls and take the minimum t				
+				TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y);
+				TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y);
+				TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X);
+				TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X);									
 			}
 		}
-	}		
+	}	
+	// TODO: these wall tests are working ?? but don't stop the player movement through the wall				
+	NewPlayerP = OldPlayerP;
+	NewPlayerP.Offset += tMin*PlayerDelta;
+	Entity->P = NewPlayerP;
+	NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
+
 #endif
 
 	// NOTE: update camera/player Z based on last movement
@@ -624,6 +655,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		if(ControllingEntity)	
 		{
 			v2 ddP = {};
+			bool32 didInputMovement = false;
 			if(Controller->IsAnalog)
 			{	
 				// NOTE: analog movement tuning
@@ -631,26 +663,36 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			else
 			{								
-
+				
 				if(Controller->MoveUp.EndedDown)
 				{
-					ddP.Y = 1.0f;				
+					ddP.Y = 1.0f;		
+					didInputMovement = true;		
 				}
 				if(Controller->MoveDown.EndedDown)
 				{
 					ddP.Y = -1.0f;
+					didInputMovement = true;
 				}
 				if(Controller->MoveLeft.EndedDown)
 				{
 					ddP.X = -1.0f;
+					didInputMovement = true;
 				}
 				if(Controller->MoveRight.EndedDown)
 				{
 					ddP.X = 1.0f;
+					didInputMovement = true;
 				}							
 			}
 
-			MovePlayer(GameState, ControllingEntity, Input->dtForFrame, ddP);
+			if(didInputMovement){
+				MovePlayer(GameState, ControllingEntity, Input->dtForFrame, ddP);
+			}			
+			else
+			{
+				MovePlayer(GameState, ControllingEntity, Input->dtForFrame, ddP);
+			}
 		}		
 		else
 		{
