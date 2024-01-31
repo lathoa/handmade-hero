@@ -18,7 +18,7 @@ typedef struct
 	uint32 AbsTileZ;
 
 	// NOTE: These are the offsets from center of tile
-	v2 Offset;
+	v2 Offset_;
 } tile_map_position;
 
 typedef struct 
